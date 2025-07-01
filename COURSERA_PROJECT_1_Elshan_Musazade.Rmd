@@ -1,0 +1,148 @@
+---
+title: "COURSERA PROJECT 1"
+author: "Elshan Musazade"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r setup, include=FALSE}
+# Loading necessary libraries
+library(dplyr)
+library(ggplot2)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 🔹 Introduction
+
+This assignment uses data from a personal activity monitoring device that collects steps at 5-minute intervals. The dataset spans October and November 2012 and will be analyzed to explore physical activity patterns, handle missing data, and compare activity behavior between weekdays and weekends.
+
+## 🔹 Load and Inspect Data
+
+```{r load_data}
+# Load dataset
+activity <- read.csv("C:/Users/ASUS/Desktop/homework/activity.csv")
+
+# Convert date to Date type and check structure
+activity$date <- as.Date(activity$date)
+str(activity)
+
+# Check for missing data in 'steps'
+missing_steps <- sum(is.na(activity$steps))
+missing_steps
+```
+
+## 🔹 Total Number of Steps per Day
+
+```{r total_steps_day}
+# Calculate total steps per day
+daily_steps <- activity %>%
+  group_by(date) %>%
+  summarise(total_steps = sum(steps, na.rm = TRUE))
+
+# Plot histogram of total steps per day
+ggplot(daily_steps, aes(x = total_steps)) +
+  geom_histogram(binwidth = 1000, fill = "steelblue", color = "black") +
+  labs(title = "Histogram of Total Steps per Day", x = "Steps", y = "Frequency") +
+  theme_minimal()
+
+# Calculate and display mean and median of daily steps
+mean_steps <- mean(daily_steps$total_steps)
+median_steps <- median(daily_steps$total_steps)
+mean_steps
+median_steps
+```
+
+## 🔹 Average Daily Activity Pattern
+
+```{r daily_pattern}
+# Calculate average steps by 5-minute interval
+interval_avg <- activity %>%
+  group_by(interval) %>%
+  summarise(avg_steps = mean(steps, na.rm = TRUE))
+
+# Plot average steps by interval
+ggplot(interval_avg, aes(x = interval, y = avg_steps)) +
+  geom_line(color = "darkgreen") +
+  labs(title = "Average Steps by 5-Minute Interval", x = "Interval", y = "Average Steps") +
+  theme_minimal()
+
+# Find the interval with the maximum average steps
+max_interval <- interval_avg[which.max(interval_avg$avg_steps), ]
+max_interval
+```
+
+## 🔹 Imputing Missing Values
+
+```{r impute}
+# Impute missing steps using the average steps for the same interval
+activity_imputed <- activity %>%
+  left_join(interval_avg, by = "interval") %>%
+  mutate(steps = ifelse(is.na(steps), avg_steps, steps)) %>%
+  select(date, interval, steps)
+
+# Check for any remaining missing values
+remaining_missing <- sum(is.na(activity_imputed$steps))
+remaining_missing
+```
+
+## 🔹 Total Steps After Imputation
+
+```{r hist_imputed}
+# Calculate total steps per day after imputation
+daily_steps_imputed <- activity_imputed %>%
+  group_by(date) %>%
+  summarise(total_steps = sum(steps))
+
+# Plot histogram of total steps after imputation
+ggplot(daily_steps_imputed, aes(x = total_steps)) +
+  geom_histogram(binwidth = 1000, fill = "coral", color = "black") +
+  labs(title = "Histogram After Imputation", x = "Steps", y = "Frequency") +
+  theme_minimal()
+
+# Calculate and display mean and median of total steps after imputation
+mean_imputed_steps <- mean(daily_steps_imputed$total_steps)
+median_imputed_steps <- median(daily_steps_imputed$total_steps)
+mean_imputed_steps
+median_imputed_steps
+```
+
+## 🔹 Compare Before vs After Imputation
+
+```{r compare_means}
+# Compare mean and median before and after imputation
+original_stats <- daily_steps %>%
+  summarise(mean = mean(total_steps), median = median(total_steps))
+
+imputed_stats <- daily_steps_imputed %>%
+  summarise(mean = mean(total_steps), median = median(total_steps))
+
+# Display comparison
+comparison <- rbind(original_stats, imputed_stats)
+comparison
+```
+
+## 🔹 Weekday vs Weekend Patterns
+
+```{r weekday_weekend}
+# Add 'day_type' column to classify days as 'weekday' or 'weekend'
+activity_imputed$day_type <- ifelse(weekdays(activity_imputed$date) %in% c("Saturday", "Sunday"), "weekend", "weekday")
+
+# Calculate average steps by interval for weekdays and weekends
+interval_daytype <- activity_imputed %>%
+  group_by(interval, day_type) %>%
+  summarise(avg_steps = mean(steps), .groups = 'drop')
+
+# Plot steps by interval for weekdays vs weekends
+ggplot(interval_daytype, aes(x = interval, y = avg_steps, color = day_type)) +
+  geom_line() +
+  facet_wrap(~day_type, nrow = 2) +
+  labs(title = "Steps by Interval: Weekday vs Weekend", x = "Interval", y = "Average Steps") +
+  theme_minimal()
+```
+
+## ✅ Conclusion
+
+This report explored activity patterns, handled missing values with mean imputation, and compared behaviors between weekdays and weekends. The analysis was conducted using modern `dplyr` and `ggplot2` functions for efficient and reproducible results.
